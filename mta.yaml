@@ -1,0 +1,94 @@
+_schema-version: "3.1"
+ID: Managedapprouter
+description: A simple CAP project.
+version: 1.0.0
+modules:
+- name: Managedapprouter-srv
+  type: nodejs
+  path: gen/srv
+  requires:
+  - name: uaa_Managedapprouter
+  - name: Managedapprouter-db
+  provides:
+  - name: srv-api
+    properties:
+      srv-url: ${default-url}
+  parameters:
+    buildpack: nodejs_buildpack
+    readiness-health-check-http-endpoint: /health
+    readiness-health-check-type: http
+  build-parameters:
+    builder: npm
+- name: Managedapprouter-db-deployer
+  type: hdb
+  path: gen/db
+  requires:
+  - name: Managedapprouter-db
+  parameters:
+    buildpack: nodejs_buildpack
+- name: Managedapprouter-destination-content
+  type: com.sap.application.content
+  requires:
+  - name: Managedapprouter-destination-service
+    parameters:
+      content-target: true
+  - name: Managedapprouter_html_repo_host
+    parameters:
+      service-key:
+        name: Managedapprouter_html_repo_host-key
+  - name: uaa_Managedapprouter
+    parameters:
+      service-key:
+        name: uaa_Managedapprouter-key
+  parameters:
+    content:
+      instance:
+        destinations:
+        - Name: managed_router_Managedapprouter_html_repo_host
+          ServiceInstanceName: Managedapprouter-html5-app-host-service
+          ServiceKeyName: Managedapprouter_html_repo_host-key
+          sap.cloud.service: managed-router
+        - Authentication: OAuth2UserTokenExchange
+          Name: managed_router_uaa_Managedapprouter
+          ServiceInstanceName: Managedapprouter-xsuaa-service
+          ServiceKeyName: uaa_Managedapprouter-key
+          sap.cloud.service: managed-router
+        existing_destinations_policy: ignore
+  build-parameters:
+    no-source: true
+resources:
+- name: Managedapprouter-db
+  type: com.sap.xs.hdi-container
+  parameters:
+    service: hana
+    service-plan: hdi-shared
+- name: Managedapprouter-destination-service
+  type: org.cloudfoundry.managed-service
+  parameters:
+    config:
+      HTML5Runtime_enabled: true
+      version: 1.0.0
+    service: destination
+    service-name: Managedapprouter-destination-service
+    service-plan: lite
+- name: Managedapprouter_html_repo_host
+  type: org.cloudfoundry.managed-service
+  parameters:
+    service: html5-apps-repo
+    service-name: Managedapprouter-html5-app-host-service
+    service-plan: app-host
+- name: uaa_Managedapprouter
+  type: org.cloudfoundry.managed-service
+  parameters:
+    path: ./xs-security.json
+    service: xsuaa
+    service-name: Managedapprouter-xsuaa-service
+    service-plan: application
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+  - builder: custom
+    commands:
+    - npm ci
+    - npx cds build --production
