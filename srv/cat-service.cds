@@ -4,6 +4,10 @@ service CatalogService {
       @restrict: [{
         grant: '*',
         to   : 'Admin'
+    },
+    {
+      grant:'Create',
+      to:'User'
     }]
     entity Books as projection on my.Books;
 }
